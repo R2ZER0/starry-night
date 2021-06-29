@@ -156,10 +156,13 @@ function love.keypressed(key, scancode, isrepeat)
 end
 
 -- Scene Objects
-local lightPosition = vec3(4.0, 7.0, -1.0)
+-- X left-right negative-positive
+-- Y top-bottom negative-positive
+-- Z front-back negative-positive
+local lightPosition = vec3(100.0, -100.0, 100.0)
 
 local objects = {
-    InfinitePlane(vec3(0, 4, 0), vec3(0, -1, 0)):with_colour(vec3(0, 1, 0)),
+    InfinitePlane(vec3(0, 1, 0), vec3(0, -1, 0)):with_colour(vec3(0, 1, 0)),
     Sphere(vec3(-2, 0, -5), 1):with_colour(vec3(1, 0, 0)),
     Sphere(vec3(1,  0, -8), 1):with_colour(vec3(0, 0, 1)),
     Sphere(vec3(-4, 0, -5), 1),
@@ -202,8 +205,16 @@ function love.draw()
             local point, dist, object = castRay(ray, objects)
 
             if point then
-                local colourScale = math.min(1.0, 1 - ((dist - clampMin) / (clampMax - clampMin)))
-                local rgb = object.colour * colourScale
+                -- Cast ray to light
+                local rayToLight = Ray(point + vec3(0, -0.0001, 0), lightPosition - point)
+
+                local inShadow, _, _ = castRay(rayToLight, objects)
+
+                -- local colourScale = math.min(1.0, 1 - ((dist - clampMin) / (clampMax - clampMin)))
+                local rgb = object.colour
+                if inShadow ~= false then
+                    rgb = rgb * 0.3 -- Shadow is darker
+                end
                 screen:setPx(x, y, rgb.x, rgb.y, rgb.z)
             else
                 local rgb = vec3.scale(bgGradient, y/resolution.y)
