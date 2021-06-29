@@ -81,15 +81,39 @@ end
 
 Shape = class()
 
+function Shape:init()
+    self.colour = vec3(1, 1, 1)
+end
+
+function Shape:with_colour(new_colour)
+    if new_colour ~= nil then
+        self.colour = new_colour
+    end
+    return self
+end
+
 Sphere = Shape:extend()
 
 function Sphere:init(position, radius)
+    self.super.init(self)
     self.position = position
     self.radius = radius
 end
 
-function Sphere:intersect(ray)
+function Sphere:intersect_ray(ray)
     return intersect.ray_sphere(ray, self)
+end
+
+InfinitePlane = Shape:extend()
+
+function InfinitePlane:init(position, normal)
+    self.super.init(self)
+    self.position = position
+    self.normal = normal
+end
+
+function InfinitePlane:intersect_ray(ray)
+    return intersect.ray_plane(ray, self)
 end
 
 
@@ -99,7 +123,7 @@ local screen = loveScreen
 local resolution = vec2(162, 80)
         
 local clampMin = 1
-local clampMax = 10
+local clampMax = 32
 
 local cameraYaw = 0
 local cameraPitch = 0
@@ -124,15 +148,20 @@ function love.keypressed(key, scancode, isrepeat)
     if scancode == "down" then  cameraPitch = cameraPitch - cameraRotSpeed end
     if scancode == "r" then cameraPos.y = cameraPos.y + 0.5 end
     if scancode == "f" then cameraPos.y = cameraPos.y - 0.5 end
+    if scancode == "d" then cameraPos.x = cameraPos.x + 0.5 end
+    if scancode == "a" then cameraPos.x = cameraPos.x - 0.5 end
+    if scancode == "s" then cameraPos.z = cameraPos.z + 0.5 end
+    if scancode == "w" then cameraPos.z = cameraPos.z - 0.5 end
     updateViewMatrix()
 end
 
 -- Scene Objects
 local lightPosition = vec3(4.0, 7.0, -1.0)
 
-local spheres = {
-    Sphere(vec3(-2, 0, -5), 1),
-    Sphere(vec3(1,  0, -8), 1),
+local objects = {
+    InfinitePlane(vec3(0, 4, 0), vec3(0, -1, 0)):with_colour(vec3(0, 1, 0)),
+    Sphere(vec3(-2, 0, -5), 1):with_colour(vec3(1, 0, 0)),
+    Sphere(vec3(1,  0, -8), 1):with_colour(vec3(0, 0, 1)),
     Sphere(vec3(-4, 0, -5), 1),
 }
 
@@ -142,7 +171,7 @@ local function castRay(ray, objects)
     local closestObject = nil
 
     for _, object in ipairs(objects) do
-        local point, dist = intersect.ray_sphere(ray, object) 
+        local point, dist = object:intersect_ray(ray)
         if point and dist < closestDist then
             closestDist = dist
             closestPoint = point
@@ -170,14 +199,15 @@ function love.draw()
             ray.direction = viewRotMatrix * ray.direction
             ray.position = cameraPos
 
-            local point, dist, object = castRay(ray, spheres)
+            local point, dist, object = castRay(ray, objects)
 
             if point then
-                local colour = math.min(1.0, 1 - ((dist - clampMin) / (clampMax - clampMin)))
-                screen:setPx(x, y, colour, colour, colour)
+                local colourScale = math.min(1.0, 1 - ((dist - clampMin) / (clampMax - clampMin)))
+                local rgb = object.colour * colourScale
+                screen:setPx(x, y, rgb.x, rgb.y, rgb.z)
             else
-                local colour3 = vec3.scale(bgGradient, y/resolution.y)
-                screen:setPx(x, y, colour3.x, colour3.y, colour3.z)
+                local rgb = vec3.scale(bgGradient, y/resolution.y)
+                screen:setPx(x, y, rgb.x, rgb.y, rgb.z)
             end
 
         end

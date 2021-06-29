@@ -4,7 +4,7 @@ Class = {}
 function Class:init(...) end
 
 -- create a subclass
-function Class:extend(obj)
+function Class:extend(obj, is_new)
 	local obj = obj or {}
 
 	local function copyTable(table, destination)
@@ -27,6 +27,10 @@ function Class:extend(obj)
 	copyTable(self, obj)
 
 	obj._ = obj._ or {}
+
+	if not is_new then
+		obj.super = self
+	end
 
 	-- create new objects directly, like o = Object()
 	obj.__call = function(self, ...)
@@ -51,7 +55,7 @@ end
 
 -- create an instance of an object with constructor parameters
 function Class:new(...)
-	local obj = self:extend({})
+	local obj = self:extend({}, true)
 	if obj.init then obj:init(...) end
 	return obj
 end
