@@ -1,5 +1,11 @@
 {
     "Lua.diagnostics.globals": [
-        "love"
+        "love",
+        "vec3",
+        "vec2",
+        "mat4",
+        "quat",
+        "intersect",
+        "class"
     ]
 }
