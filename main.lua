@@ -10,8 +10,8 @@ end
 
 if LOVE_SIM then
     require "class"
---    Class = class.Class
     require "cpml"
+    require "materials"
 else
     os.loadAPI("lib/class")
     os.loadAPI("lib/cpml")
@@ -49,10 +49,11 @@ function LoveScreen:init()
     love.window.setMode(self.loveResolution.x, self.loveResolution.y, {})
 end
 
-function LoveScreen:setPx(x, y, r, g, b)
-    -- Expects r/g/b are 0-1.0
+function LoveScreen:setPx(x, y, c)
     local s = self.pxsize
-    love.graphics.setColor(r, g, b)
+    local v = colour_palette[math.floor(c)]
+    --if v == nil then print("c="..tostring(c).." v="..tostring(v)) end
+    love.graphics.setColor(v[1] / 255, v[2] / 255, v[3] / 255)
     love.graphics.rectangle("fill", x * s.x, y * s.y, s.x, s.y)
 end
 
@@ -60,26 +61,18 @@ function love.conf(t)
     t.console = true
 end
 
+
 else -- NOT LOVE_SIM
 
 MCScreen = Screen:extend()
 
 function MCScreen:init()
+    local monitor = peripheral.wrap("left")
     monitor.setTextScale(0.5)
 end
 
--- Stolen from colors.lua
-local function rgb8( r, g, b )
-    return 
-        bit32.lshift( bit32.band(r * 255, 0xFF), 16 ) +
-        bit32.lshift( bit32.band(g * 255, 0xFF), 8 ) +
-        bit32.band(b * 255, 0xFF)
-end
-
-function MCScreen:setPx(x, y, r, g, b)
-    local colour = rgb8(r, g, b)
-    paintutils.drawPixel(x, y, colour)
-    os.sleep(0)
+function MCScreen:setPx(x, y, c)
+    paintutils.drawPixel(x, y, c)
 end
 
 end -- end NOT LOVE_SIM
@@ -89,7 +82,7 @@ end -- end NOT LOVE_SIM
 -- Main part of the program
 --
 
-local INFINITY = tonumber("inf")
+local INFINITY = 0xFFFFFFFFFF
 
 --print(vec2, vec3, mat4, quat, intersect)
 
@@ -139,7 +132,7 @@ end
 Shape = Class:extend()
 
 function Shape:init()
-    self.colour = vec3(1, 1, 1)
+    self.colour = colours.white
 end
 
 function Shape:with_colour(new_colour)
@@ -188,9 +181,9 @@ AABB = Shape:extend()
 local lightPosition = vec3(100.0, -100.0, 100.0)
 
 local objects = {
-    InfinitePlane(vec3(0, 1, 0), vec3(0, -1, 0)):with_colour(vec3(0, 1, 0)),
-    Sphere(vec3(-2, -1.1, -5), 1):with_colour(vec3(1, 0, 0)),
-    Sphere(vec3(1,  0, -8), 1):with_colour(vec3(0, 0, 1)),
+    InfinitePlane(vec3(0, 1, 0), vec3(0, -1, 0)):with_colour(colours.green),
+    Sphere(vec3(-2, -1.1, -5), 1):with_colour(colours.red),
+    Sphere(vec3(1,  0, -8), 1):with_colour(colours.cyan),
     Sphere(vec3(2, -1.5, 2), 1),
 }
 
@@ -227,22 +220,20 @@ local function renderFrame(screen)
 
             local point, dist, object = castRay(ray, objects)
 
+            local pxColour = colours.black
             if point then
                 -- Cast ray to light
                 local rayToLight = Ray(point + vec3(0, -0.0001, 0), (lightPosition - point):normalize())
 
                 local inShadow, _, _ = castRay(rayToLight, objects)
 
-                -- local colourScale = math.min(1.0, 1 - ((dist - clampMin) / (clampMax - clampMin)))
-                local rgb = object.colour
-                if inShadow ~= false then
-                    rgb = rgb * 0.3 -- Shadow is darker
+                if inShadow then
+                    pxColour = colours.gray
+                else
+                    pxColour = object.colour
                 end
-                screen:setPx(x, y, rgb.x, rgb.y, rgb.z)
-            else
-                local rgb = vec3.scale(bgGradient, y/resolution.y)
-                screen:setPx(x, y, rgb.x, rgb.y, rgb.z)
             end
+            screen:setPx(x, y, pxColour)
 
         end
     end

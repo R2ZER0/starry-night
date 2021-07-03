@@ -6,6 +6,7 @@
         "mat4",
         "quat",
         "intersect",
-        "class"
+        "class",
+        "colours"
     ]
 }
