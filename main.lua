@@ -79,6 +79,7 @@ end
 function MCScreen:setPx(x, y, r, g, b)
     local colour = rgb8(r, g, b)
     paintutils.drawPixel(x, y, colour)
+    os.sleep(0)
 end
 
 end -- end NOT LOVE_SIM
@@ -256,18 +257,19 @@ function love.draw()
     renderFrame(loveScreen)
 end
 
-else 
+else -- NOT LOVE_SIM 
 
 local function main()
     local screen = MCScreen()
     while(true) do
         renderFrame(screen)
+        os.sleep(1)
     end
 end
 
 main()
 
-end
+end -- END NOT LOVE_SIM
 
 --
 -- Movement
