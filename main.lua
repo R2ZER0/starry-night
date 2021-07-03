@@ -12,70 +12,28 @@ if LOVE_SIM then
     require "class"
     require "cpml"
     require "materials"
+    require "ray"
+    require "lovescreen"
 else
     os.loadAPI("lib/class")
-    os.loadAPI("lib/cpml")
     Class = class.Class
+    
+    os.loadAPI("lib/cpml")
     vec3 = cpml.vec3
     vec2 = cpml.vec2
     mat4 = cpml.mat4
     quat = cpml.quat
     intersect = cpml.intersect
+
+    os.loadAPI("ray")
+    Ray = ray.Ray
+
+    os.loadAPI("ccscreen")
+    Screen = ccscreen.Screen
 end
 
 
-Screen = Class:extend()
-Screen.resolution = vec2(162, 80)
 
-
-if LOVE_SIM then
---
--- Run in Simulator
---
-
---
--- LoveScreen pixel blitter
---  Simulates the ComputerCraft Monitor using Love2D engine
---
-
-LoveScreen = Screen:extend()
-
-LoveScreen.pixelRatio = vec2(1, 2)
-LoveScreen.loveScale = 4
-
-function LoveScreen:init()
-    self.pxsize = self.pixelRatio * self.loveScale
-    self.loveResolution = self.pxsize * self.resolution
-    love.window.setMode(self.loveResolution.x, self.loveResolution.y, {})
-end
-
-function LoveScreen:setPx(x, y, c)
-    local s = self.pxsize
-    local v = colour_palette[math.floor(c)]
-    --if v == nil then print("c="..tostring(c).." v="..tostring(v)) end
-    love.graphics.setColor(v[1] / 255, v[2] / 255, v[3] / 255)
-    love.graphics.rectangle("fill", x * s.x, y * s.y, s.x, s.y)
-end
-
-function love.conf(t) 
-    t.console = true
-end
-
-
-else -- NOT LOVE_SIM
-
-MCScreen = Screen:extend()
-
-function MCScreen:init()
-    local monitor = peripheral.wrap("left")
-    monitor.setTextScale(0.5)
-end
-
-function MCScreen:setPx(x, y, c)
-    paintutils.drawPixel(x, y, c)
-end
-
-end -- end NOT LOVE_SIM
 
 
 --
@@ -84,11 +42,8 @@ end -- end NOT LOVE_SIM
 
 local INFINITY = 0xFFFFFFFFFF
 
---print(vec2, vec3, mat4, quat, intersect)
 
 -- Draw Parameters
-local resolution = vec2(162, 80)
-
 local cameraYaw = math.pi / 32
 local cameraPitch = math.pi / 32
 local cameraPos = vec3(0, -2, 8) -- vec3(0, -2, 0)
@@ -109,23 +64,6 @@ updateViewMatrix()
 
 
 
--- Ray class
-Ray = Class:extend()
-
-function Ray:init(pos, dir)
-    self.position = pos
-    self.direction = dir
-end
-
-function Ray:fromPixel(pixel, resolution)
-    local posX = ((pixel.x / resolution.x) - 0.5)
-    local posY = ((pixel.y / resolution.y) - 0.5)
-    return self(vec3(0, 0, 0), vec3(posX, posY, -1):normalize())
-end
-
-function Ray.__tostring(self)
-    return "Ray(" .. tostring(self.position) .. "," .. tostring(self.direction) .. ")"
-end
 
 -- Shapes
 
@@ -210,11 +148,11 @@ local function renderFrame(screen)
     local bgBottomColour = vec3(0, 0.7, 1.0) * 2
     local bgGradient = bgTopColour + (bgBottomColour - bgTopColour)
     
-    for y=0,resolution.y do
-        for x=0,resolution.x do
+    for y=0,screen.resolution.y do
+        for x=0,screen.resolution.x do
             
             -- Shoot the ray in the scene and search for intersection
-            local ray = Ray:fromPixel(vec2(x, y), resolution)
+            local ray = Ray:fromPixel(vec2(x, y), screen.resolution)
             ray.direction = viewRotMatrix * ray.direction
             ray.position = cameraPos
 
@@ -240,7 +178,7 @@ local function renderFrame(screen)
 end
 
 if LOVE_SIM then
-local loveScreen = LoveScreen:new()
+local loveScreen = Screen:new()
 
 function love.draw()
     love.graphics.setColor(1, 1,  1)
@@ -251,10 +189,10 @@ end
 else -- NOT LOVE_SIM 
 
 local function main()
-    local screen = MCScreen()
+    local screen = Screen()
     while(true) do
         renderFrame(screen)
-        os.sleep(1)
+        os.sleep(0)
     end
 end
 
