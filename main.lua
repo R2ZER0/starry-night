@@ -1,3 +1,4 @@
+---@diagnostic disable: unused-function
 local LOVE_SIM = false
 
 if _G["love"] ~= nil then
@@ -8,12 +9,14 @@ end
 -- Load Libraries
 --
 
+
 if LOVE_SIM then
     require "class"
     require "cpml"
     require "materials"
     require "ray"
     require "lovescreen"
+    require "shapes"
 else
     os.loadAPI("lib/class")
     Class = class.Class
@@ -27,20 +30,20 @@ else
 
     os.loadAPI("ray")
     Ray = ray.Ray
+    
+    os.loadAPI("shapes")
+    Sphere = shapes.Sphere
+    Plane = shapes.Plane
 
     os.loadAPI("ccscreen")
     Screen = ccscreen.Screen
+
 end
-
-
-
 
 
 --
 -- Main part of the program
 --
-
-local INFINITY = 0xFFFFFFFFFF
 
 
 -- Draw Parameters
@@ -52,6 +55,7 @@ local viewRotMatrix = mat4()
 local viewTransMatrix = mat4()
 
 
+-- Call this every time the camera moves
 local function updateViewMatrix()
     local yawRot = quat.from_angle_axis(cameraYaw, vec3(0, -1, 0))
     local pitchRot = quat.from_angle_axis(cameraPitch, vec3(1, 0, 0))
@@ -61,57 +65,6 @@ end
 
 updateViewMatrix()
 
-
-
-
-
--- Shapes
-
-Shape = Class:extend()
-
-function Shape:init()
-    self.colour = colours.white
-end
-
-function Shape:with_colour(new_colour)
-    if new_colour ~= nil then
-        self.colour = new_colour
-    end
-    return self
-end
-
-Sphere = Shape:extend()
-
-function Sphere:init(position, radius)
-    self.super.init(self)
-    self.position = position
-    self.radius = radius
-end
-
-function Sphere:intersect_ray(ray)
-    return intersect.ray_sphere(ray, self)
-end
-
-InfinitePlane = Shape:extend()
-
-function InfinitePlane:init(position, normal)
-    self.super.init(self)
-    self.position = position
-    self.normal = normal
-end
-
-function InfinitePlane:intersect_ray(ray)
-    return intersect.ray_plane(ray, self)
-end
-
-
-AABB = Shape:extend()
-
-
-
-
-
-
 -- Scene Objects
 -- X left-right negative-positive
 -- Y top-bottom negative-positive
@@ -119,9 +72,9 @@ AABB = Shape:extend()
 local lightPosition = vec3(100.0, -100.0, 100.0)
 
 local objects = {
-    InfinitePlane(vec3(0, 1, 0), vec3(0, -1, 0)):with_colour(colours.green),
-    Sphere(vec3(-2, -1.1, -5), 1):with_colour(colours.red),
-    Sphere(vec3(1,  0, -8), 1):with_colour(colours.cyan),
+    Plane(vec3(0, 1, 0), vec3(0, -1, 0)):with_colour(colours.lime, colours.green),
+    Sphere(vec3(-2, -1.1, -5), 1):with_colour(colours.red, colours.brown),
+    Sphere(vec3(1,  0, -8), 1):with_colour(colours.blue, colours.cyan),
     Sphere(vec3(2, -1.5, 2), 1),
 }
 
@@ -144,10 +97,6 @@ end
 
 
 local function renderFrame(screen)
-    local bgTopColour = vec3(0, 0.1, 0.5) * 2
-    local bgBottomColour = vec3(0, 0.7, 1.0) * 2
-    local bgGradient = bgTopColour + (bgBottomColour - bgTopColour)
-    
     for y=0,screen.resolution.y do
         for x=0,screen.resolution.x do
             
@@ -158,18 +107,9 @@ local function renderFrame(screen)
 
             local point, dist, object = castRay(ray, objects)
 
-            local pxColour = colours.black
+            local pxColour = colours.black -- background
             if point then
-                -- Cast ray to light
-                local rayToLight = Ray(point + vec3(0, -0.0001, 0), (lightPosition - point):normalize())
-
-                local inShadow, _, _ = castRay(rayToLight, objects)
-
-                if inShadow then
-                    pxColour = colours.gray
-                else
-                    pxColour = object.colour
-                end
+                pxColour = object:pointColour(point, {{position = lightPosition}}, objects)
             end
             screen:setPx(x, y, pxColour)
 
